@@ -189,19 +189,20 @@ setInterval(async () => {
 
     addHistoryEvent({
       type: 'OUTAGE_START',
-      message: 'Corte eléctrico detectado (sin respuesta del ESP32)',
+      message: 'Corte de CORPOELEC detectado (ESP32 sin energía eléctrica)',
       elapsedSeconds
     });
 
     const alertMessage = 
 `🚨 <b>¡ALERTA DE APAGÓN ELÉCTRICO!</b> 🚨
 ━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ <b>Estado:</b> CORTE DE ELECTRICIDAD DETECTADO
+⚠️ <b>Estado:</b> CORTE DE CORPOELEC DETECTADO
 ⏱️ <b>Tiempo sin señal:</b> ${elapsedSeconds} seg (límite: ${GRACE_PERIOD_SECONDS}s)
 📅 <b>Fecha y Hora:</b> ${formatDateTime(now)}
-⚡ <b>Sistema:</b> Dead Man's Switch (ESP32 desconectado)
+⚡ <b>Suministro:</b> Red CORPOELEC sin energía (ESP32 apagado)
+📶 <b>Conectividad:</b> Router Wi-Fi activo con Mini-UPS
 ━━━━━━━━━━━━━━━━━━━━━━━━
-<i>El router sigue en línea por Mini-UPS, pero el microcontrolador se apagó.</i>`;
+<i>El switch de hombre muerto se ha activado.</i>`;
 
     await sendTelegramMessage(alertMessage);
   }
@@ -240,7 +241,7 @@ app.get('/api/ping', async (req, res) => {
 
     addHistoryEvent({
       type: 'POWER_RESTORED',
-      message: `Servicio eléctrico restablecido tras ${durationFormatted}`,
+      message: `Energía de CORPOELEC restablecida tras ${durationFormatted}`,
       outageStartTime: outageStart,
       restoredTime: now,
       durationSeconds,
@@ -252,12 +253,12 @@ app.get('/api/ping', async (req, res) => {
     const restoredMessage = 
 `⚡ <b>¡ENERGÍA ELÉCTRICA RESTABLECIDA!</b> ⚡
 ━━━━━━━━━━━━━━━━━━━━━━━━
-✅ <b>Estado:</b> SERVICIO ACTIVO Y FUNCIONANDO
+✅ <b>Estado:</b> SERVICIO DE CORPOELEC ACTIVO
 ⏳ <b>Duración del apagón:</b> ${durationFormatted}
 📅 <b>Hora de retorno:</b> ${formatDateTime(now)}
 📊 <b>Cortes registrados hoy:</b> ${state.outagesToday}
 ━━━━━━━━━━━━━━━━━━━━━━━━
-<i>El ESP32 ha reiniciado y vuelto a transmitir sus pings con éxito.</i>`;
+<i>El suministro de CORPOELEC ha retornado y el ESP32 reanudó su transmisión.</i>`;
 
     // Enviar notificación a Telegram en segundo plano
     sendTelegramMessage(restoredMessage).catch(err => console.error(err));

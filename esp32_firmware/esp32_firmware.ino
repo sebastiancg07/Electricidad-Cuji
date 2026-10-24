@@ -16,15 +16,15 @@
 // ============================================================================
 // 1. CONFIGURACIÓN DE RED Y SERVIDOR (MODIFICA ESTOS DATOS)
 // ============================================================================
-const char* WIFI_SSID     = "TU_NOMBRE_DE_WIFI";
-const char* WIFI_PASSWORD = "TU_CONTRASENA_WIFI";
+const char* WIFI_SSID     = "Oikos";
+const char* WIFI_PASSWORD = "madretierraparirasfelicidad";
 
-// URL base de tu servidor en Render (ej: "https://powerwatch-iot.onrender.com")
+// URL base de tu servidor en Render (ej: "https://electricidad-cuji.onrender.com")
 // NOTA: NO incluir barra inclinada "/" al final
-const char* SERVER_BASE_URL = "https://tu-app-en-render.onrender.com";
+const char* SERVER_BASE_URL = "https://electricidad-cuji.onrender.com";
 
 // Clave secreta configurada en PING_SECRET_KEY del archivo .env
-const char* PING_SECRET_KEY = "tu_clave_secreta_super_segura_123";
+const char* PING_SECRET_KEY = "madretierraparirasfelicidad";
 
 // Intervalo de envío de ping (60 segundos = 60,000 milisegundos)
 const unsigned long PING_INTERVAL_MS = 60000;
