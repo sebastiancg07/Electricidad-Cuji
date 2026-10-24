@@ -194,15 +194,14 @@ setInterval(async () => {
     });
 
     const alertMessage = 
-`🚨 <b>¡ALERTA DE APAGÓN ELÉCTRICO!</b> 🚨
+`🚨 <b>CORTE ELÉCTRICO DETECTADO</b> 🚨
 ━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ <b>Estado:</b> CORTE DE CORPOELEC DETECTADO
+⚠️ <b>Estado:</b> SIN SUMINISTRO ELÉCTRICO
 ⏱️ <b>Tiempo sin señal:</b> ${elapsedSeconds} seg (límite: ${GRACE_PERIOD_SECONDS}s)
 📅 <b>Fecha y Hora:</b> ${formatDateTime(now)}
-⚡ <b>Suministro:</b> Red CORPOELEC sin energía (ESP32 apagado)
-📶 <b>Conectividad:</b> Router Wi-Fi activo con Mini-UPS
+⚡ <b>Alimentación:</b> Red CORPOELEC sin energía
 ━━━━━━━━━━━━━━━━━━━━━━━━
-<i>El switch de hombre muerto se ha activado.</i>`;
+<i>El ESP32 no está recibiendo corriente por parte de CORPOELEC.</i>`;
 
     await sendTelegramMessage(alertMessage);
   }
