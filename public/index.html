@@ -168,7 +168,7 @@
           </h2>
 
           <p id="statusSubtext" class="text-sm sm:text-base text-slate-400 max-w-lg mb-8">
-            El microcontrolador ESP32 está recibiendo energía directa de CORPOELEC.
+            El ESP32 está recibiendo corriente por parte de CORPOELEC y transmitiendo sus pings con éxito.
           </p>
 
           <!-- SECCIÓN DEL CRONÓMETRO Y BARRA DE PROGRESO -->
@@ -394,7 +394,7 @@
         statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Servicio Eléctrico Normal`;
         headline.textContent = 'SERVICIO ELÉCTRICO ACTIVO';
         headline.className = 'text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-2 transition-all';
-        subtext.textContent = 'El microcontrolador ESP32 está recibiendo energía directa de CORPOELEC.';
+        subtext.textContent = 'El ESP32 está recibiendo corriente por parte de CORPOELEC y transmitiendo sus pings con éxito.';
       } else {
         // Modo CORTE DETECTADO (Rojo Rubí Alerta)
         card.className = 'relative overflow-hidden rounded-3xl p-6 sm:p-10 border transition-all duration-500 bg-cyber-900 border-rose-500/50 glow-down';
