@@ -1,19 +1,19 @@
 {
-  "name": "PowerWatch IoT - Monitoreo Eléctrico",
-  "short_name": "PowerWatch",
+  "name": "Electricidad Cují",
+  "short_name": "ElecCují",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#090d16",
-  "theme_color": "#090d16",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2310b981'/><path d='M55 15 L25 55 L45 55 L35 85 L75 45 L55 45 Z' fill='%23ffffff'/></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><path d='M55 15 L25 55 L45 55 L35 85 L75 45 L55 45 Z' fill='%2310b981'/></svg>",
       "sizes": "192x192",
       "type": "image/svg+xml"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2310b981'/><path d='M55 15 L25 55 L45 55 L35 85 L75 45 L55 45 Z' fill='%23ffffff'/></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><path d='M55 15 L25 55 L45 55 L35 85 L75 45 L55 45 Z' fill='%2310b981'/></svg>",
       "sizes": "512x512",
       "type": "image/svg+xml"
     }

@@ -2,5 +2,6 @@ node_modules/
 .env
 data/*.json
 !data/.gitkeep
+state.json
 .DS_Store
 *.log

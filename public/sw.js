@@ -1,5 +1,4 @@
-// Service Worker básico para PWA PowerWatch IoT
-const CACHE_NAME = 'powerwatch-v1';
+const CACHE_NAME = 'powerwatch-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
