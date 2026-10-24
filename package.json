@@ -1,0 +1,27 @@
+{
+  "name": "esp32-power-monitor",
+  "version": "1.0.0",
+  "description": "Sistema de monitoreo de cortes eléctricos IoT con ESP32, Dead Man's Switch, Telegram y Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "esp32",
+    "iot",
+    "dead-mans-switch",
+    "telegram-bot",
+    "render",
+    "power-outage-monitor"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}

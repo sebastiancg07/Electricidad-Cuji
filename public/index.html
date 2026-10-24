@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PowerWatch IoT — Monitoreo de Cortes Eléctricos</title>
+  <meta name="description" content="Sistema de monitoreo de cortes eléctricos mediante Dead Man's Switch con ESP32 y alertas en tiempo real por Telegram.">
+  <meta name="theme-color" content="#090d16">
+  
+  <!-- Manifest PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/manifest.json">
+  
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Outfit', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            cyber: {
+              950: '#060911',
+              900: '#0a0f1d',
+              800: '#11182c',
+              700: '#1a243f',
+              600: '#263459'
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'ping-slow': 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    /* Estilos personalizados para animaciones y scrollbar */
+    body {
+      background: radial-gradient(circle at top, #111a33 0%, #060911 100%);
+      min-height: 100vh;
+    }
+    
+    .glow-up {
+      box-shadow: 0 0 50px -5px rgba(16, 185, 129, 0.35);
+    }
+    
+    .glow-down {
+      box-shadow: 0 0 60px -5px rgba(239, 68, 68, 0.45);
+    }
+
+    /* Scrollbar personalizada */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0a0f1d;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #263459;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b82f6;
+    }
+  </style>
+</head>
+<body class="text-slate-100 font-sans antialiased selection:bg-emerald-500 selection:text-white pb-12">
+
+  <!-- Contenedor Principal -->
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+    
+    <!-- Encabezado / Barra Superior -->
+    <header class="flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 ring-1 ring-emerald-400/30">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">PowerWatch IoT</h1>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-mono">v1.0</span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-400">Dead Man's Switch • ESP32 & Telegram Alert</p>
+        </div>
+      </div>
+
+      <!-- Acciones de cabecera -->
+      <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+        <!-- Indicador de conexión con el backend -->
+        <div id="connectionStatusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/50 text-xs text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="connectionStatusText">Sincronizado</span>
+        </div>
+
+        <!-- Botón Probar Telegram -->
+        <button id="btnTestTelegram" onclick="triggerTelegramTest()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 text-sky-400 border border-sky-500/30 text-xs font-medium transition-all active:scale-95">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+          </svg>
+          <span>Probar Telegram</span>
+        </button>
+
+        <!-- Botón Refrescar Manual -->
+        <button onclick="fetchStatus(true)" title="Refrescar estado" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 text-slate-300 transition-all active:rotate-180">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Toast de Notificaciones -->
+    <div id="toastNotification" class="fixed top-5 right-5 z-50 transform transition-all duration-300 translate-y-[-150%] opacity-0 pointer-events-none max-w-sm w-full bg-slate-800 border rounded-xl shadow-2xl p-4 flex items-start gap-3">
+      <div id="toastIcon" class="mt-0.5"></div>
+      <div class="flex-1 text-sm">
+        <p id="toastTitle" class="font-semibold text-white"></p>
+        <p id="toastMessage" class="text-xs text-slate-300 mt-0.5"></p>
+      </div>
+    </div>
+
+    <!-- TARJETA PRINCIPAL: ESTADO GIGANTE (UP / DOWN) -->
+    <div class="mt-8">
+      <div id="mainStatusCard" class="relative overflow-hidden rounded-3xl p-6 sm:p-10 border transition-all duration-500 bg-cyber-900 border-slate-800 glow-up">
+        
+        <!-- Efecto de gradiente decorativo de fondo -->
+        <div id="statusBgGradient" class="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col items-center text-center">
+          
+          <!-- Icono Central con Pulso -->
+          <div class="relative mb-6">
+            <div id="statusPulseRing" class="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping-slow"></div>
+            <div id="statusIconContainer" class="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-emerald-500/10 border-2 border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-inner transition-colors duration-500">
+              <!-- SVG Rayo (UP) -->
+              <svg id="iconUp" class="w-12 h-12 sm:w-14 sm:h-14 block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              <!-- SVG Alerta (DOWN) -->
+              <svg id="iconDown" class="w-12 h-12 sm:w-14 sm:h-14 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Título de Estado Gigante -->
+          <span id="statusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase mb-3 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            Estado del Sistema
+          </span>
+
+          <h2 id="statusHeadline" class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-2 transition-all">
+            SERVICIO ELÉCTRICO ACTIVO
+          </h2>
+
+          <p id="statusSubtext" class="text-sm sm:text-base text-slate-400 max-w-lg mb-8">
+            El microcontrolador ESP32 está reportando normalmente a través del Mini-UPS.
+          </p>
+
+          <!-- SECCIÓN DEL CRONÓMETRO Y BARRA DE PROGRESO -->
+          <div class="w-full max-w-xl bg-slate-900/90 rounded-2xl p-4 sm:p-5 border border-slate-800 shadow-xl">
+            <div class="flex items-center justify-between text-xs sm:text-sm mb-2">
+              <span class="text-slate-400 flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Último latido recibido:
+              </span>
+              <span id="elapsedDisplay" class="font-mono font-bold text-emerald-400 text-sm sm:text-base">
+                hace 0s
+              </span>
+            </div>
+
+            <!-- Barra de Progreso de Gracia -->
+            <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700/50">
+              <div id="graceProgressBar" class="h-full rounded-full bg-emerald-500 transition-all duration-500 w-0"></div>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-400 mt-2 font-mono">
+              <span>0s (Ping ESP32)</span>
+              <span id="graceLimitText">Límite: 180s (Alerta Telegram)</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- GRID DE MÉTRICAS RÁPIDAS -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-6">
+      
+      <!-- Card 1: Última Hora de Ping -->
+      <div class="bg-cyber-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-medium">Último Contacto</span>
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <div>
+          <div id="metricLastPing" class="text-lg sm:text-xl font-bold font-mono text-white">--:--:--</div>
+          <div id="metricLastDate" class="text-[11px] text-slate-400 mt-0.5">Esperando datos...</div>
+        </div>
+      </div>
+
+      <!-- Card 2: Pings Hoy -->
+      <div class="bg-cyber-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-medium">Pings Hoy</span>
+          <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <div>
+          <div id="metricPingsToday" class="text-lg sm:text-xl font-bold font-mono text-white">0</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Frecuencia: ~1/min</div>
+        </div>
+      </div>
+
+      <!-- Card 3: Cortes Eléctricos Hoy -->
+      <div class="bg-cyber-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-medium">Cortes Hoy</span>
+          <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+          </svg>
+        </div>
+        <div>
+          <div id="metricOutagesToday" class="text-lg sm:text-xl font-bold font-mono text-white">0</div>
+          <div id="metricOutageSub" class="text-[11px] text-slate-400 mt-0.5">Sin interrupciones</div>
+        </div>
+      </div>
+
+      <!-- Card 4: Tolerancia / Watchdog -->
+      <div class="bg-cyber-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-medium">Tiempo de Gracia</span>
+          <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <div>
+          <div id="metricGracePeriod" class="text-lg sm:text-xl font-bold font-mono text-white">180s</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Watchdog activo cada 5s</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TABLA DE HISTORIAL DE INCIDENTES -->
+    <div class="mt-8 bg-cyber-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+          </svg>
+          <h3 class="font-bold text-white text-base">Historial de Incidentes y Eventos</h3>
+        </div>
+        <span class="text-xs text-slate-400 font-mono" id="historyCounter">0 eventos</span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+          <thead>
+            <tr class="bg-slate-950/60 text-slate-400 border-b border-slate-800/80 font-mono text-[11px] uppercase tracking-wider">
+              <th class="py-3 px-4 font-semibold">Tipo</th>
+              <th class="py-3 px-4 font-semibold">Fecha y Hora</th>
+              <th class="py-3 px-4 font-semibold">Detalle / Duración</th>
+              <th class="py-3 px-4 font-semibold text-right">Estado</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody" class="divide-y divide-slate-800/50">
+            <!-- Filas dinámicas -->
+            <tr>
+              <td colspan="4" class="py-10 text-center text-slate-500">
+                <svg class="w-8 h-8 mx-auto mb-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                No hay incidentes registrados aún. Todo el suministro está estable.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Footer informativo -->
+    <footer class="mt-10 text-center text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-800/60 pt-6">
+      <p>PowerWatch IoT • Interruptor de hombre muerto para microcontroladores</p>
+      <p class="font-mono text-slate-400">Endpoint activo: <span class="text-emerald-400">/api/ping</span></p>
+    </footer>
+
+  </div>
+
+  <!-- SCRIPT DE LÓGICA FRONTEND -->
+  <script>
+    // Variables de estado local en el navegador
+    let localElapsedSeconds = 0;
+    let gracePeriod = 180;
+    let currentStatus = 'UP';
+    let lastServerSyncTime = Date.now();
+    let pollInterval = null;
+    let tickInterval = null;
+
+    // Toast helper
+    function showToast(title, message, isError = false) {
+      const toast = document.getElementById('toastNotification');
+      const toastTitle = document.getElementById('toastTitle');
+      const toastMsg = document.getElementById('toastMessage');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastTitle.textContent = title;
+      toastMsg.textContent = message;
+
+      if (isError) {
+        toast.className = 'fixed top-5 right-5 z-50 transform transition-all duration-300 translate-y-0 opacity-100 max-w-sm w-full bg-rose-950/90 border border-rose-600/50 rounded-xl shadow-2xl p-4 flex items-start gap-3 backdrop-blur-md';
+        toastIcon.innerHTML = `<svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+      } else {
+        toast.className = 'fixed top-5 right-5 z-50 transform transition-all duration-300 translate-y-0 opacity-100 max-w-sm w-full bg-slate-900/90 border border-sky-500/50 rounded-xl shadow-2xl p-4 flex items-start gap-3 backdrop-blur-md';
+        toastIcon.innerHTML = `<svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`;
+      }
+
+      setTimeout(() => {
+        toast.classList.replace('translate-y-0', 'translate-y-[-150%]');
+        toast.classList.replace('opacity-100', 'opacity-0');
+      }, 4000);
+    }
+
+    // Probar Telegram Bot
+    async function triggerTelegramTest() {
+      const btn = document.getElementById('btnTestTelegram');
+      btn.disabled = true;
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+      btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> <span>Enviando...</span>`;
+
+      try {
+        const res = await fetch('/api/test-telegram', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Telegram OK', data.message);
+        } else {
+          showToast('Error en Telegram', data.error || 'No se pudo conectar', true);
+        }
+      } catch (err) {
+        showToast('Error de Red', 'Fallo al comunicarse con el servidor', true);
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> <span>Probar Telegram</span>`;
+      }
+    }
+
+    // Actualizar UI con datos recibidos del backend
+    function updateDashboardUI(data) {
+      currentStatus = data.status;
+      localElapsedSeconds = data.elapsedSeconds;
+      gracePeriod = data.gracePeriodSeconds || 180;
+      lastServerSyncTime = Date.now();
+
+      // Referencias DOM
+      const card = document.getElementById('mainStatusCard');
+      const gradient = document.getElementById('statusBgGradient');
+      const pulseRing = document.getElementById('statusPulseRing');
+      const iconContainer = document.getElementById('statusIconContainer');
+      const iconUp = document.getElementById('iconUp');
+      const iconDown = document.getElementById('iconDown');
+      const statusBadge = document.getElementById('statusBadge');
+      const headline = document.getElementById('statusHeadline');
+      const subtext = document.getElementById('statusSubtext');
+
+      if (data.status === 'UP') {
+        // Modo SERVICIO ACTIVO (Verde Esmeralda)
+        card.className = 'relative overflow-hidden rounded-3xl p-6 sm:p-10 border transition-all duration-500 bg-cyber-900 border-emerald-500/40 glow-up';
+        gradient.className = 'absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent pointer-events-none';
+        pulseRing.className = 'absolute inset-0 rounded-full bg-emerald-500/20 animate-ping-slow';
+        iconContainer.className = 'relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-emerald-500/10 border-2 border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-inner transition-colors duration-500';
+        iconUp.classList.remove('hidden');
+        iconDown.classList.add('hidden');
+        statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase mb-3 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Servicio Eléctrico Normal`;
+        headline.textContent = 'SERVICIO ELÉCTRICO ACTIVO';
+        headline.className = 'text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-2 transition-all';
+        subtext.textContent = 'El microcontrolador ESP32 está reportando normalmente a través del Mini-UPS.';
+      } else {
+        // Modo CORTE DETECTADO (Rojo Rubí Alerta)
+        card.className = 'relative overflow-hidden rounded-3xl p-6 sm:p-10 border transition-all duration-500 bg-cyber-900 border-rose-500/50 glow-down';
+        gradient.className = 'absolute inset-0 bg-gradient-to-br from-rose-500/15 via-transparent to-transparent pointer-events-none';
+        pulseRing.className = 'absolute inset-0 rounded-full bg-rose-500/30 animate-ping-slow';
+        iconContainer.className = 'relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-rose-500/15 border-2 border-rose-500/50 flex items-center justify-center text-rose-400 shadow-inner transition-colors duration-500';
+        iconUp.classList.add('hidden');
+        iconDown.classList.remove('hidden');
+        statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase mb-3 bg-rose-500/25 text-rose-300 border border-rose-500/40';
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span> ALERTA DE APAGÓN DISPARADA`;
+        headline.textContent = 'CORTE ELÉCTRICO DETECTADO';
+        headline.className = 'text-3xl sm:text-5xl font-extrabold tracking-tight text-rose-400 mb-2 transition-all';
+        subtext.innerHTML = `El ESP32 no responde. Duración estimada del corte: <span class="font-mono font-bold text-white">${data.currentOutageDurationFormatted || 'En curso'}</span>. Notificación enviada a Telegram.`;
+      }
+
+      // Actualizar Métricas
+      const d = new Date(data.lastPingTime);
+      document.getElementById('metricLastPing').textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      document.getElementById('metricLastDate').textContent = d.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
+      document.getElementById('metricPingsToday').textContent = data.pingsToday.toLocaleString();
+      document.getElementById('metricOutagesToday').textContent = data.outagesToday.toLocaleString();
+      document.getElementById('metricOutageSub').textContent = data.outagesToday === 0 ? 'Sin cortes registrados' : (data.outagesToday === 1 ? '1 interrupción registrada' : `${data.outagesToday} cortes registrados`);
+      document.getElementById('metricGracePeriod').textContent = `${gracePeriod}s`;
+      document.getElementById('graceLimitText').textContent = `Límite: ${gracePeriod}s (Alerta Telegram)`;
+
+      // Renderizar Historial
+      renderHistory(data.historyLogs);
+
+      // Actualizar contador y barra de progreso inmediatamente
+      updateProgressDisplay();
+    }
+
+    // Cronómetro local que suma 1s a cada segundo para que sea ultra fluido
+    function localTick() {
+      localElapsedSeconds++;
+      updateProgressDisplay();
+    }
+
+    function updateProgressDisplay() {
+      const display = document.getElementById('elapsedDisplay');
+      const bar = document.getElementById('graceProgressBar');
+
+      display.textContent = `hace ${localElapsedSeconds}s`;
+
+      const percentage = Math.min(100, Math.round((localElapsedSeconds / gracePeriod) * 100));
+      bar.style.width = `${percentage}%`;
+
+      if (currentStatus === 'DOWN' || localElapsedSeconds >= gracePeriod) {
+        display.className = 'font-mono font-bold text-rose-400 text-sm sm:text-base';
+        bar.className = 'h-full rounded-full bg-rose-500 transition-all duration-300';
+      } else if (localElapsedSeconds >= 60) {
+        display.className = 'font-mono font-bold text-amber-400 text-sm sm:text-base';
+        bar.className = 'h-full rounded-full bg-amber-500 transition-all duration-300';
+      } else {
+        display.className = 'font-mono font-bold text-emerald-400 text-sm sm:text-base';
+        bar.className = 'h-full rounded-full bg-emerald-500 transition-all duration-300';
+      }
+    }
+
+    // Renderizar la tabla de historial
+    function renderHistory(logs) {
+      const tbody = document.getElementById('historyTableBody');
+      const counter = document.getElementById('historyCounter');
+
+      if (!logs || logs.length === 0) {
+        counter.textContent = '0 eventos';
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="py-8 text-center text-slate-500">
+              No hay incidentes registrados aún. El suministro eléctrico se encuentra estable.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      counter.textContent = `${logs.length} evento${logs.length > 1 ? 's' : ''}`;
+
+      tbody.innerHTML = logs.map(item => {
+        const dateObj = new Date(item.timestamp);
+        const timeFormatted = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const dateFormatted = dateObj.toLocaleDateString([], { day: '2-digit', month: 'short' });
+
+        if (item.type === 'OUTAGE_START') {
+          return `
+            <tr class="hover:bg-slate-800/40 transition-colors">
+              <td class="py-3 px-4 whitespace-nowrap">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
+                  Corte Eléctrico
+                </span>
+              </td>
+              <td class="py-3 px-4 font-mono text-slate-300 whitespace-nowrap">
+                ${dateFormatted} ${timeFormatted}
+              </td>
+              <td class="py-3 px-4 text-slate-300">
+                ${item.message || 'Sin señal de latido del ESP32'}
+              </td>
+              <td class="py-3 px-4 text-right whitespace-nowrap">
+                <span class="text-rose-400 font-mono font-semibold">APAGÓN</span>
+              </td>
+            </tr>
+          `;
+        } else if (item.type === 'POWER_RESTORED') {
+          return `
+            <tr class="hover:bg-slate-800/40 transition-colors">
+              <td class="py-3 px-4 whitespace-nowrap">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  Restablecido
+                </span>
+              </td>
+              <td class="py-3 px-4 font-mono text-slate-300 whitespace-nowrap">
+                ${dateFormatted} ${timeFormatted}
+              </td>
+              <td class="py-3 px-4 text-emerald-400 font-medium">
+                Duración del corte: <span class="font-mono font-bold">${item.durationFormatted || 'N/A'}</span>
+              </td>
+              <td class="py-3 px-4 text-right whitespace-nowrap">
+                <span class="text-emerald-400 font-mono font-semibold">NORMAL</span>
+              </td>
+            </tr>
+          `;
+        } else {
+          return `
+            <tr class="hover:bg-slate-800/40 transition-colors">
+              <td class="py-3 px-4 whitespace-nowrap">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                  Info
+                </span>
+              </td>
+              <td class="py-3 px-4 font-mono text-slate-300 whitespace-nowrap">
+                ${dateFormatted} ${timeFormatted}
+              </td>
+              <td class="py-3 px-4 text-slate-400">
+                ${item.message || 'Evento del sistema'}
+              </td>
+              <td class="py-3 px-4 text-right whitespace-nowrap">
+                <span class="text-slate-400 font-mono">OK</span>
+              </td>
+            </tr>
+          `;
+        }
+      }).join('');
+    }
+
+    // Consulta periódica a /api/status cada 2 segundos
+    async function fetchStatus(isManual = false) {
+      try {
+        const res = await fetch('/api/status');
+        if (!res.ok) throw new Error('Respuesta no válida del servidor');
+        const data = await res.json();
+        updateDashboardUI(data);
+
+        // Estado sincronizado
+        const badge = document.getElementById('connectionStatusBadge');
+        const badgeText = document.getElementById('connectionStatusText');
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Sincronizado</span>`;
+
+        if (isManual) {
+          showToast('Actualizado', 'Datos sincronizados con el servidor');
+        }
+      } catch (err) {
+        console.warn('Error al consultar /api/status:', err);
+        const badge = document.getElementById('connectionStatusBadge');
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span><span class="text-rose-400">Sin conexión</span>`;
+      }
+    }
+
+    // Registro de Service Worker para PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(err => {
+        console.log('SW registration error:', err);
+      });
+    }
+
+    // Inicio de temporizadores
+    fetchStatus();
+    pollInterval = setInterval(fetchStatus, 2000); // Polling cada 2 segundos
+    tickInterval = setInterval(localTick, 1000);   // Ticker local cada 1 segundo
+  </script>
+</body>
+</html>
