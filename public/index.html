@@ -472,50 +472,35 @@
       const durationText = document.getElementById('currentStateDurationText');
 
       if (data.status === 'UP') {
-        // MODO UP (Con Luz)
+        // MODO SERVICIO ACTIVO (Verde Esmeralda)
         card.className = 'relative overflow-hidden rounded-3xl p-6 sm:p-10 border transition-all duration-500 bg-cyber-900 border-emerald-500/40 glow-up';
         gradient.className = 'absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent pointer-events-none';
         pulseRing.className = 'absolute inset-0 rounded-full bg-emerald-500/20 animate-ping-slow';
         iconContainer.className = 'relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-emerald-500/10 border-2 border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-inner transition-colors duration-500';
         iconUp.classList.remove('hidden');
         iconDown.classList.add('hidden');
-        iconWaiting.classList.add('hidden');
+        if (iconWaiting) iconWaiting.classList.add('hidden');
         statusBadge.className = 'inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold tracking-wider uppercase mb-3 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
         statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Servicio Eléctrico Normal`;
         headline.textContent = 'SERVICIO ELÉCTRICO ACTIVO';
         headline.className = 'text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-2 transition-all';
         durationBadge.className = 'inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-slate-950/70 border border-emerald-500/30 text-sm font-mono font-bold text-emerald-300 mb-4 shadow-inner';
         subtext.textContent = 'El ESP32 está recibiendo corriente por parte de CORPOELEC y transmitiendo sus pings con éxito.';
-      } else if (data.status === 'DOWN') {
-        // MODO DOWN (Corte Eléctrico)
+      } else {
+        // MODO CORTE ELÉCTRICO DETECTADO (Rojo Rubí Alerta)
         card.className = 'relative overflow-hidden rounded-3xl p-6 sm:p-10 border transition-all duration-500 bg-cyber-900 border-rose-500/50 glow-down';
         gradient.className = 'absolute inset-0 bg-gradient-to-br from-rose-500/15 via-transparent to-transparent pointer-events-none';
         pulseRing.className = 'absolute inset-0 rounded-full bg-rose-500/30 animate-ping-slow';
         iconContainer.className = 'relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-rose-500/15 border-2 border-rose-500/50 flex items-center justify-center text-rose-400 shadow-inner transition-colors duration-500';
         iconUp.classList.add('hidden');
         iconDown.classList.remove('hidden');
-        iconWaiting.classList.add('hidden');
+        if (iconWaiting) iconWaiting.classList.add('hidden');
         statusBadge.className = 'inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold tracking-wider uppercase mb-3 bg-rose-500/25 text-rose-300 border border-rose-500/40';
         statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span> ALERTA DE CORTE ELÉCTRICO DISPARADA`;
         headline.textContent = 'CORTE ELÉCTRICO DETECTADO';
         headline.className = 'text-3xl sm:text-5xl font-extrabold tracking-tight text-rose-400 mb-2 transition-all';
         durationBadge.className = 'inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-slate-950/70 border border-rose-500/40 text-sm font-mono font-bold text-rose-400 mb-4 shadow-inner';
         subtext.innerHTML = `El ESP32 no está recibiendo corriente por parte de CORPOELEC. Duración estimada del corte: <span class="font-mono font-bold text-white">${data.currentOutageDurationFormatted || 'En curso'}</span>. Notificación enviada a Telegram.`;
-      } else {
-        // MODO WAITING (Esperando primer latido anti-falsos positivos)
-        card.className = 'relative overflow-hidden rounded-3xl p-6 sm:p-10 border transition-all duration-500 bg-cyber-900 border-amber-500/40 glow-waiting';
-        gradient.className = 'absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent pointer-events-none';
-        pulseRing.className = 'absolute inset-0 rounded-full bg-amber-500/20 animate-ping-slow';
-        iconContainer.className = 'relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-amber-500/10 border-2 border-amber-500/40 flex items-center justify-center text-amber-400 shadow-inner transition-colors duration-500';
-        iconUp.classList.add('hidden');
-        iconDown.classList.add('hidden');
-        iconWaiting.classList.remove('hidden');
-        statusBadge.className = 'inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold tracking-wider uppercase mb-3 bg-amber-500/20 text-amber-300 border border-amber-500/30';
-        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Iniciando Monitoreo`;
-        headline.textContent = 'ESPERANDO PRIMER LATIDO';
-        headline.className = 'text-3xl sm:text-5xl font-extrabold tracking-tight text-amber-300 mb-2 transition-all';
-        durationBadge.className = 'inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-slate-950/70 border border-amber-500/30 text-sm font-mono font-bold text-amber-300 mb-4 shadow-inner';
-        subtext.textContent = 'Servidor reiniciado. En espera del primer ping del ESP32 para verificar el suministro eléctrico.';
       }
 
       // Actualizar Métricas
@@ -543,19 +528,8 @@
       // Actualizar duración continua
       if (currentStatus === 'UP') {
         durationText.textContent = `Con luz desde hace ${formatDurationLocal(localStateDurationSeconds)}`;
-      } else if (currentStatus === 'DOWN') {
-        durationText.textContent = `Sin luz desde hace ${formatDurationLocal(localStateDurationSeconds)}`;
       } else {
-        durationText.textContent = `Esperando primer latido desde hace ${formatDurationLocal(localStateDurationSeconds)}`;
-      }
-
-      // Actualizar latido ESP32
-      if (currentStatus === 'WAITING') {
-        display.textContent = 'esperando...';
-        display.className = 'font-mono font-bold text-amber-400 text-sm sm:text-base';
-        bar.style.width = '0%';
-        bar.className = 'h-full rounded-full bg-amber-500';
-        return;
+        durationText.textContent = `Sin luz desde hace ${formatDurationLocal(localStateDurationSeconds)}`;
       }
 
       display.textContent = `hace ${localElapsedSeconds}s`;

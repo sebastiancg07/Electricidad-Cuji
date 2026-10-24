@@ -75,11 +75,10 @@ function getStartOfDayVenezuela() {
 // GESTIÓN DEL ESTADO EN MEMORIA Y PERSISTENCIA (state.json)
 // =========================================================================
 
-// Estado del sistema: 'WAITING' (espera inicial anti-falsos positivos), 'UP', o 'DOWN'
 let state = {
-  status: 'WAITING',
+  status: 'UP',
   stateStartTime: Date.now(),
-  lastPingTime: null,
+  lastPingTime: Date.now(),
   outageStartTime: null,
   currentDay: getVenezuelaDayString(),
   pingsToday: 0,
@@ -99,21 +98,17 @@ function loadPersistedState() {
 
       state = {
         ...state,
-        // Cargar estadísticas acumuladas si corresponden al mismo día
         pingsToday: isSameDay ? (saved.pingsToday || 0) : 0,
         outagesToday: isSameDay ? (saved.outagesToday || 0) : 0,
         totalDowntimeSecondsToday: isSameDay ? (saved.totalDowntimeSecondsToday || 0) : 0,
         historyLogs: Array.isArray(saved.historyLogs) ? saved.historyLogs : [],
-        lastPingTime: saved.lastPingTime || null,
+        lastPingTime: saved.lastPingTime || Date.now(),
         outageStartTime: saved.outageStartTime || null,
         currentDay: today,
-        // Anti-Falsos Positivos: Todo arranque o reinicio del contenedor empieza en WAITING
-        status: 'WAITING',
-        stateStartTime: Date.now()
+        status: saved.status || 'UP',
+        stateStartTime: saved.stateStartTime || Date.now()
       };
-      console.log('✅ Estado persistente restaurado desde state.json (Iniciando en WAITING)');
-    } else {
-      console.log('ℹ️ No existe state.json previo. Iniciando en estado WAITING.');
+      console.log('✅ Estado persistente restaurado desde state.json');
     }
   } catch (err) {
     console.warn('⚠️ Error al leer state.json:', err.message);
@@ -204,14 +199,9 @@ setInterval(async () => {
   checkDayRollover();
   const now = Date.now();
 
-  // Si estamos en WAITING, no disparamos alertas (esperando primer latido del ESP32)
-  if (state.status === 'WAITING' || !state.lastPingTime) {
-    return;
-  }
+  const elapsedSeconds = Math.floor((now - (state.lastPingTime || now)) / 1000);
 
-  const elapsedSeconds = Math.floor((now - state.lastPingTime) / 1000);
-
-  // Si pasaron más segundos que el tiempo de gracia y estábamos en UP
+  // Si pasaron más de 180 segundos (3 minutos) sin pings y el estado es UP
   if (elapsedSeconds > GRACE_PERIOD_SECONDS && state.status === 'UP') {
     state.status = 'DOWN';
     state.stateStartTime = now;
@@ -261,33 +251,11 @@ app.get('/api/ping', async (req, res) => {
   const previousStatus = state.status;
   const previousPing = state.lastPingTime;
 
-  // CASO 1: El servidor arrancó y estaba esperando el primer latido
-  if (previousStatus === 'WAITING') {
-    state.status = 'UP';
-    state.stateStartTime = now;
-    state.lastPingTime = now;
-    state.pingsToday++;
-
-    console.log('⚡ [SINCRONIZADO] Primer latido recibido tras inicio del servidor. Estado pasa a UP silenciosamente.');
-    addHistoryEvent({
-      type: 'SYSTEM_START',
-      message: 'Servidor sincronizado con el ESP32 tras arranque'
-    });
-    persistState();
-
-    return res.status(200).json({
-      status: 'ok',
-      systemStatus: state.status,
-      timestamp: now,
-      elapsedSinceLast: 0
-    });
-  }
-
-  // CASO 2: Venía de un corte eléctrico (DOWN -> UP)
+  // Si veníamos de un corte eléctrico (DOWN -> UP), se restableció la luz!
   if (previousStatus === 'DOWN') {
     state.status = 'UP';
     state.stateStartTime = now;
-    const outageStart = state.outageStartTime || (previousPing ? previousPing + (GRACE_PERIOD_SECONDS * 1000) : now);
+    const outageStart = state.outageStartTime || (previousPing ? previousPing + (GRACE_PERIOD_SECONDS * 1000) : (now - (GRACE_PERIOD_SECONDS * 1000)));
     const durationSeconds = Math.max(0, Math.floor((now - outageStart) / 1000));
     const durationFormatted = formatDuration(durationSeconds);
 
@@ -321,6 +289,7 @@ app.get('/api/ping', async (req, res) => {
   }
 
   // Actualizar métricas generales
+  state.status = 'UP';
   state.lastPingTime = now;
   state.pingsToday++;
   persistState();
