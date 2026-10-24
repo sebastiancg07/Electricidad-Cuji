@@ -404,10 +404,10 @@
         iconUp.classList.add('hidden');
         iconDown.classList.remove('hidden');
         statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase mb-3 bg-rose-500/25 text-rose-300 border border-rose-500/40';
-        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span> ALERTA DE APAGÓN DISPARADA`;
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span> ALERTA DE CORTE ELÉCTRICO DISPARADA`;
         headline.textContent = 'CORTE ELÉCTRICO DETECTADO';
         headline.className = 'text-3xl sm:text-5xl font-extrabold tracking-tight text-rose-400 mb-2 transition-all';
-        subtext.innerHTML = `Corte en la red de CORPOELEC detectado (ESP32 sin energía). Duración estimada del corte: <span class="font-mono font-bold text-white">${data.currentOutageDurationFormatted || 'En curso'}</span>. Notificación enviada a Telegram.`;
+        subtext.innerHTML = `El ESP32 no está recibiendo corriente por parte de CORPOELEC. Duración estimada del corte: <span class="font-mono font-bold text-white">${data.currentOutageDurationFormatted || 'En curso'}</span>. Notificación enviada a Telegram.`;
       }
 
       // Actualizar Métricas
