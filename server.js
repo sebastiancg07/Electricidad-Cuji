@@ -270,6 +270,9 @@ setInterval(async () => {
         state.outageStartTime = serverBootTime - (BOOT_GRACE_PERIOD_SECONDS * 1000);
         state.outagesToday++;
       }
+      if (!state.lastPingTime) {
+        state.lastPingTime = state.outageStartTime;
+      }
 
       addHistoryEvent({
         type: 'OUTAGE_START',
@@ -474,6 +477,7 @@ app.post('/api/adjust-outage-time', async (req, res) => {
   state.status = 'DOWN';
   state.outageStartTime = parsedTimestamp;
   state.stateStartTime = parsedTimestamp;
+  state.lastPingTime = parsedTimestamp; // El último latido registrado del ESP32 coincide con el inicio del apagón
   state.wasDownBeforeRestart = true;
 
   const formattedTime = formatDateTime(parsedTimestamp);
@@ -505,7 +509,9 @@ app.get('/api/status', (req, res) => {
   const bootElapsedSeconds = Math.floor((now - serverBootTime) / 1000);
   const remainingBootSeconds = Math.max(0, BOOT_GRACE_PERIOD_SECONDS - bootElapsedSeconds);
 
-  const elapsedSeconds = state.lastPingTime ? Math.floor((now - state.lastPingTime) / 1000) : null;
+  // Determinar último ping conocido (si está en DOWN y lastPingTime era nulo, el inicio del corte representa el último ping)
+  const effectiveLastPingTime = state.lastPingTime || state.outageStartTime;
+  const elapsedSeconds = effectiveLastPingTime ? Math.floor((now - effectiveLastPingTime) / 1000) : null;
 
   // Duración del corte actual
   let currentOutageDuration = 0;
@@ -544,8 +550,8 @@ app.get('/api/status', (req, res) => {
     bootElapsedSeconds,
     bootGracePeriodSeconds: BOOT_GRACE_PERIOD_SECONDS,
     remainingBootSeconds,
-    lastPingTime: state.lastPingTime,
-    lastPingFormatted: formatDateTime(state.lastPingTime),
+    lastPingTime: effectiveLastPingTime,
+    lastPingFormatted: formatDateTime(effectiveLastPingTime),
     elapsedSeconds,
     gracePeriodSeconds: GRACE_PERIOD_SECONDS,
     pingsToday: state.pingsToday,

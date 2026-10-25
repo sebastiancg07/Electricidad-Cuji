@@ -274,7 +274,7 @@
                 <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
-                Último latido recibido:
+                <span id="elapsedLabelText">Último latido recibido:</span>
               </span>
               <span id="elapsedDisplay" class="font-mono font-bold text-amber-400 text-sm sm:text-base">
                 Verificando arranque...
@@ -426,6 +426,8 @@
     let bootElapsedSeconds = 0;
     let pollInterval = null;
     let tickInterval = null;
+    let lastPingFormatted = null;
+    let lastPingTime = null;
 
     // Toast helper
     function showToast(title, message, isError = false) {
@@ -660,13 +662,22 @@
         graceLimitText.textContent = `Límite: ${data.bootGracePeriodSeconds || 90}s (Confirmar Corte)`;
       }
 
+      // Guardar información del último ping
+      lastPingFormatted = data.lastPingFormatted;
+      lastPingTime = data.lastPingTime;
+
       // Actualizar Métricas de tarjetas
       document.getElementById('metricUptimePercentage').textContent = data.uptimePercentage || '100.0%';
       document.getElementById('metricTotalDowntime').textContent = data.totalDowntimeToday || '0 seg';
       document.getElementById('metricOutagesToday').textContent = data.outagesToday !== undefined ? data.outagesToday : 0;
       document.getElementById('metricOutageSub').textContent = data.outagesToday === 0 ? 'Sin interrupciones' : (data.outagesToday === 1 ? '1 interrupción registrada' : `${data.outagesToday} cortes registrados`);
       document.getElementById('metricPingsToday').textContent = data.pingsToday !== undefined ? data.pingsToday.toLocaleString() : 0;
-      document.getElementById('metricLastPingTime').textContent = data.lastPingFormatted ? `Último: ${data.lastPingFormatted.split(',')[1] || data.lastPingFormatted}` : 'En espera';
+      
+      let cardLastPing = 'En espera';
+      if (data.lastPingFormatted && data.lastPingFormatted !== 'Sin registro') {
+        cardLastPing = data.lastPingFormatted.includes(',') ? data.lastPingFormatted.split(',')[1].trim() : data.lastPingFormatted;
+      }
+      document.getElementById('metricLastPingTime').textContent = `Último: ${cardLastPing}`;
 
       // Renderizar Historial
       renderHistory(data.historyLogs);
@@ -677,27 +688,40 @@
 
     // Actualizar visualizaciones de cronómetros
     function updateDisplays() {
+      const elapsedLabel = document.getElementById('elapsedLabelText');
       const display = document.getElementById('elapsedDisplay');
       const bar = document.getElementById('graceProgressBar');
       const durationText = document.getElementById('currentStateDurationText');
 
+      let lastTimeOnly = '';
+      if (lastPingFormatted && lastPingFormatted !== 'Sin registro') {
+        lastTimeOnly = lastPingFormatted.includes(',') ? lastPingFormatted.split(',')[1].trim() : lastPingFormatted;
+      }
+
       if (currentStatus === 'UP') {
+        if (elapsedLabel) elapsedLabel.textContent = 'Último latido recibido:';
         durationText.textContent = `Con luz desde hace ${formatDurationLocal(localStateDurationSeconds)}`;
-        display.textContent = `hace ${localElapsedSeconds || 0}s`;
+        display.textContent = lastTimeOnly ? `${lastTimeOnly} (hace ${localElapsedSeconds || 0}s)` : `hace ${localElapsedSeconds || 0}s`;
         const percentage = Math.min(100, Math.round(((localElapsedSeconds || 0) / gracePeriod) * 100));
         bar.style.width = `${percentage}%`;
         bar.className = (localElapsedSeconds >= 120) ? 'h-full rounded-full bg-rose-500 transition-all duration-300' : ((localElapsedSeconds >= 60) ? 'h-full rounded-full bg-amber-500 transition-all duration-300' : 'h-full rounded-full bg-emerald-500 transition-all duration-300');
         display.className = (localElapsedSeconds >= 120) ? 'font-mono font-bold text-rose-400 text-sm sm:text-base' : ((localElapsedSeconds >= 60) ? 'font-mono font-bold text-amber-400 text-sm sm:text-base' : 'font-mono font-bold text-emerald-400 text-sm sm:text-base');
       } else if (currentStatus === 'DOWN') {
+        if (elapsedLabel) elapsedLabel.textContent = 'Último latido antes del corte:';
         durationText.textContent = `Sin luz desde hace ${formatDurationLocal(localStateDurationSeconds)}`;
-        display.textContent = `Sin respuesta del ESP32`;
+        if (lastTimeOnly) {
+          display.textContent = `${lastTimeOnly} (hace ${formatDurationLocal(localElapsedSeconds || localStateDurationSeconds)})`;
+        } else {
+          display.textContent = `Sin respuesta del ESP32`;
+        }
         display.className = 'font-mono font-bold text-rose-400 text-sm sm:text-base';
         bar.style.width = '100%';
         bar.className = 'h-full rounded-full bg-rose-500 transition-all duration-300';
       } else {
         // WAITING_ESP32
+        if (elapsedLabel) elapsedLabel.textContent = 'Esperando latido del ESP32:';
         durationText.textContent = `Evaluando señal... Faltan ${Math.max(0, remainingBootSeconds)}s antes de declarar corte`;
-        display.textContent = `Evaluando (${bootElapsedSeconds}s / 90s)`;
+        display.textContent = `Verificando (${bootElapsedSeconds}s / 90s)`;
         display.className = 'font-mono font-bold text-amber-400 text-sm sm:text-base';
         const bootPercentage = Math.min(100, Math.round((bootElapsedSeconds / 90) * 100));
         bar.style.width = `${bootPercentage}%`;
@@ -708,7 +732,7 @@
     // Cronómetro local
     function localTick() {
       localStateDurationSeconds++;
-      if (currentStatus === 'UP' && localElapsedSeconds !== null) {
+      if (localElapsedSeconds !== null) {
         localElapsedSeconds++;
       }
       if (currentStatus === 'WAITING_ESP32') {
