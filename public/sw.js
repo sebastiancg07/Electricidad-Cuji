@@ -1,4 +1,4 @@
-const CACHE_NAME = 'powerwatch-v2';
+const CACHE_NAME = 'powerwatch-v2.5';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -6,11 +6,6 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
   self.skipWaiting();
 });
 
@@ -18,24 +13,20 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
+        keys.map((key) => caches.delete(key))
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  // Las llamadas API a /api/ nunca deben cachearse
+  // Las llamadas API nunca deben cachearse
   if (event.request.url.includes('/api/')) {
     event.respondWith(fetch(event.request));
     return;
   }
 
+  // Las páginas y scripts siempre van a la red primero para evitar contenido viejo
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );

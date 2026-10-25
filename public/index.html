@@ -707,19 +707,19 @@
         bar.className = (localElapsedSeconds >= 120) ? 'h-full rounded-full bg-rose-500 transition-all duration-300' : ((localElapsedSeconds >= 60) ? 'h-full rounded-full bg-amber-500 transition-all duration-300' : 'h-full rounded-full bg-emerald-500 transition-all duration-300');
         display.className = (localElapsedSeconds >= 120) ? 'font-mono font-bold text-rose-400 text-sm sm:text-base' : ((localElapsedSeconds >= 60) ? 'font-mono font-bold text-amber-400 text-sm sm:text-base' : 'font-mono font-bold text-emerald-400 text-sm sm:text-base');
       } else if (currentStatus === 'DOWN') {
-        if (elapsedLabel) elapsedLabel.textContent = 'Último latido antes del corte:';
+        if (elapsedLabel) elapsedLabel.textContent = 'Último latido recibido:';
         durationText.textContent = `Sin luz desde hace ${formatDurationLocal(localStateDurationSeconds)}`;
         if (lastTimeOnly) {
           display.textContent = `${lastTimeOnly} (hace ${formatDurationLocal(localElapsedSeconds || localStateDurationSeconds)})`;
         } else {
-          display.textContent = `Sin respuesta del ESP32`;
+          display.textContent = `Sin registro previo`;
         }
         display.className = 'font-mono font-bold text-rose-400 text-sm sm:text-base';
         bar.style.width = '100%';
         bar.className = 'h-full rounded-full bg-rose-500 transition-all duration-300';
       } else {
         // WAITING_ESP32
-        if (elapsedLabel) elapsedLabel.textContent = 'Esperando latido del ESP32:';
+        if (elapsedLabel) elapsedLabel.textContent = 'Último latido recibido:';
         durationText.textContent = `Evaluando señal... Faltan ${Math.max(0, remainingBootSeconds)}s antes de declarar corte`;
         display.textContent = `Verificando (${bootElapsedSeconds}s / 90s)`;
         display.className = 'font-mono font-bold text-amber-400 text-sm sm:text-base';
